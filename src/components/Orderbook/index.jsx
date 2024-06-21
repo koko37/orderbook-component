@@ -2,8 +2,14 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Centrifuge } from "centrifuge";
 import OrderBook from "./orderbook";
 import { WSS_ENDPOINT, WSS_JWT } from "./connection";
+import style from "./index.module.css";
 
-const Orderbook = ({ symbol = "BTC-USD", coolDownPeriod = 60 * 1000 }) => {
+const Orderbook = ({
+  symbol = "BTC-USD",
+  depth = 12,
+  cleanupInterval = 60 * 1000,
+}) => {
+  const [tick, unit] = symbol.split("-");
   const [connected, setConnected] = useState(false);
   const [sequence, setSequence] = useState(0);
   const [timestamp, setTimestamp] = useState(0);
@@ -62,8 +68,8 @@ const Orderbook = ({ symbol = "BTC-USD", coolDownPeriod = 60 * 1000 }) => {
 
     // start timer that regularly cleanup old orders
     const intervalId = setInterval(() => {
-      orderbook.cleanupOldOrders((Date.now() - coolDownPeriod) * 1000);
-    }, coolDownPeriod);
+      orderbook.cleanupOldOrders((Date.now() - cleanupInterval) * 1000);
+    }, cleanupInterval);
 
     return () => {
       clearInterval(intervalId);
@@ -73,23 +79,33 @@ const Orderbook = ({ symbol = "BTC-USD", coolDownPeriod = 60 * 1000 }) => {
   }, []);
 
   return (
-    <div>
-      <div>Sequence: {sequence}</div>
-      <div>Timestamp: {timestamp}</div>
-      <div>Connect: {connected ? "ON" : "OFF"}</div>
-      <div>Asks: {orderbook.sizeOfAsks}</div>
-      <div>
-        {orderbook.topAsks(10).map(([price, size, total]) => (
-          <div key={price}>
-            {price}, {size}, {total.toFixed(2)}
+    <div className={style.orderbook}>
+      <div className={style.asks}>
+        <div className={style.header}>
+          <span className={style.price}>Price({unit})</span>
+          <span className={style.size}>Amount({tick})</span>
+          <span className={style.total}>Total</span>
+        </div>
+        {orderbook.topAsks(depth).map(([price, size, total]) => (
+          <div key={price} className={style.row}>
+            <span className={style.price}>{price.toFixed(2)}</span>
+            <span className={style.size}>{size.toFixed(4)}</span>
+            <span className={style.total}>{total.toFixed(4)}</span>
           </div>
         ))}
       </div>
-      <div>Bids: {orderbook.sizeOfBids}</div>
-      <div>
-        {orderbook.topBids(10).map(([price, size, total]) => (
-          <div key={price}>
-            {price}, {size}, {total.toFixed(2)}
+
+      <div className={style.bids}>
+        <div className={style.header}>
+          <span className={style.price}>Price({unit})</span>
+          <span className={style.size}>Amount({tick})</span>
+          <span className={style.total}>Total</span>
+        </div>
+        {orderbook.topBids(depth).map(([price, size, total]) => (
+          <div key={price} className={style.row}>
+            <span className={style.price}>{price.toFixed(2)}</span>
+            <span className={style.size}>{size.toFixed(4)}</span>
+            <span className={style.total}>{total.toFixed(4)}</span>
           </div>
         ))}
       </div>

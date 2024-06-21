@@ -1,0 +1,53 @@
+.orderbook {
+  display: flex;
+  background-color: #161a1e;
+  color: #eaecef;
+  padding: 4px;
+  font-size: 12px;
+  
+  @media screen and (max-width: 1024px) {
+    flex-direction: column;
+  }
+}
+.asks {
+  flex: 1;
+  margin: 4px 0;
+}
+
+.bids {
+  flex: 1;
+  margin: 4px 0;
+}
+
+.header {
+  color: #5e6673;
+  display: flex;
+  padding: 1px 16px;
+  font-weight: 500;
+}
+
+.row {
+  display: flex;
+  padding: 1px 16px;
+}
+
+.asks .row .price {
+  color: #f6465d;
+}
+
+.bids .row .price {
+  color: #2ebd85;
+}
+
+.price {
+  width: 40%;
+  text-align: left;
+}
+.size {
+  width: 30%;
+  text-align: right;
+}
+.total {
+  width: 30%;
+  text-align: right;
+}
