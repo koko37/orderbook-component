@@ -7,10 +7,11 @@ function App() {
 
   return (
     <div>
-      <h1>Exchange Store</h1>
-      {count > 0 && <Orderbook />}
+      <h1>Orderbook</h1>
       <button onClick={() => setCount(1)}>Connect</button>
       <button onClick={() => setCount(0)}>Disconnect</button>
+
+      {count > 0 && <Orderbook />}
     </div>
   );
 }

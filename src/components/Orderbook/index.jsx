@@ -1,54 +1,70 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Centrifuge } from "centrifuge";
+import OrderBook from "./orderbook";
+import { WSS_ENDPOINT, WSS_JWT } from "./connection";
 
-const IS_TEST_MODE = false;
-const TEST_WSS_ENDPOINT = "wss://api.testnet.rabbitx.io/ws";
-const TEST_WSS_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiZXhwIjo1MjYyNjUyMDEwfQ.x_245iYDEvTTbraw1gt4jmFRFfgMJb-GJ-hsU9HuDik";
-const MAINNET_WSS_ENDPOINT = "wss://api.prod.rabbitx.io/ws";
-const MAINNET_WSS_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDAwMDAwMDAwIiwiZXhwIjo2NTQ4NDg3NTY5fQ.o_qBZltZdDHBH3zHPQkcRhVBQCtejIuyq8V1yj5kYq8";
+const Orderbook = ({ symbol = "BTC-USD" }) => {
+  const [sequence, setSequence] = useState(0);
+  const [timestamp, setTimestamp] = useState(0);
 
-const WSS_ENDPOINT = IS_TEST_MODE ? TEST_WSS_ENDPOINT : MAINNET_WSS_ENDPOINT;
-const WSS_JWT = IS_TEST_MODE ? TEST_WSS_JWT : MAINNET_WSS_JWT;
+  const centrifuge = useRef(null);
+  const subscription = useRef(null);
+  const orderbook = useMemo(() => new OrderBook(symbol), []);
 
-const ORDERBOOK_CHANNEL = (symbol) => `orderbook:${symbol}`;
-
-const centrifuge = new Centrifuge(WSS_ENDPOINT, { token: WSS_JWT });
-const sub = centrifuge.newSubscription(ORDERBOOK_CHANNEL("BTC-USD"));
-
-const Orderbook = () => {
   useEffect(() => {
-    centrifuge.on("connected", (ctx) => {
+    centrifuge.current = new Centrifuge(WSS_ENDPOINT, { token: WSS_JWT });
+    subscription.current = centrifuge.current.newSubscription(
+      `orderbook:${symbol}`
+    );
+
+    centrifuge.current.on("connected", (ctx) => {
       console.log("connected");
     });
-
-    centrifuge.on("disconnected", (ctx) => {
+    centrifuge.current.on("disconnected", (ctx) => {
       console.log("disconnected");
     });
-
-    centrifuge.on("connecting", (ctx) => {
+    centrifuge.current.on("connecting", (ctx) => {
       console.log("connecting ...");
     });
+    subscription.current.on("publication", (ctx) => {
+      // console.log("publication: ", ctx.data);
 
-    sub.on("publication", (ctx) => {
-      console.log("publication: ", ctx.data);
+      orderbook.update(ctx.data);
+      setSequence(ctx.data.sequence);
+      setTimestamp(ctx.data.timestamp);
     });
 
-    centrifuge.on("message", (ctx) => {
-      console.log("message: ", ctx.data);
-    });
-
-    centrifuge.connect();
-    sub.subscribe();
+    centrifuge.current.connect();
+    subscription.current.subscribe();
 
     return () => {
-      sub.unsubscribe();
-      centrifuge.disconnect();
+      subscription.current.unsubscribe();
+      centrifuge.current.disconnect();
     };
   }, []);
 
-  return <div>Buy / Sell</div>;
+  return (
+    <div>
+      <div>Sequence: {sequence}</div>
+      <div>Timestamp: {timestamp}</div>
+      <div>Asks: {orderbook.sizeOfAsks}</div>
+      <div>
+        {orderbook.topAsks(10).map(([price, size, total]) => (
+          <div key={price}>
+            {price}, {size}, {total.toFixed(2)}
+          </div>
+        ))}
+      </div>
+      <div>Bids: {orderbook.sizeOfBids}</div>
+      <div>
+        {orderbook.topBids(10).map(([price, size, total]) => (
+          <div key={price}>
+            {price}, {size}, {total.toFixed(2)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default Orderbook;

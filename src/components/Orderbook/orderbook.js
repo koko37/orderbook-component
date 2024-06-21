@@ -80,13 +80,13 @@ class OrderBook {
   }
 
   /**
-   * 
-   * @param {*} count 
+   *
+   * @param {*} count
    * @returns top n ask orders as form of [price, size, price * size]
    */
   topAsks(count) {
     return Array.from(this.asks.values())
-      .sort(([priceA], [priceB]) => priceA - priceB)
+      .sort(([priceA], [priceB]) => priceB - priceA)
       .slice(0, count)
       .map(([price, size]) => [
         Number(price),
@@ -96,19 +96,27 @@ class OrderBook {
   }
 
   /**
-   * 
-   * @param {*} count 
+   *
+   * @param {*} count
    * @returns top n bid orders as form of [price, size, price * size]
    */
   topBids(count) {
     return Array.from(this.bids.values())
-      .sort(([priceA], [priceB]) => priceA - priceB)
+      .sort(([priceA], [priceB]) => priceB - priceA)
       .slice(0, count)
       .map(([price, size]) => [
         Number(price),
         Number(size),
         Number(price) * Number(size),
       ]);
+  }
+
+  get sizeOfAsks() {
+    return this.asks.size;
+  }
+
+  get sizeOfBids() {
+    return this.bids.size;
   }
 }
 
