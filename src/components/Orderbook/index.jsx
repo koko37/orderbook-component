@@ -10,57 +10,59 @@ const Orderbook = ({
   cleanupInterval = 60 * 1000,
 }) => {
   const [tick, unit] = symbol.split("-");
+
+  // [TODO] it can be used for further improvements
   const [connected, setConnected] = useState(false);
   const [sequence, setSequence] = useState(0);
   const [timestamp, setTimestamp] = useState(0);
 
   const centrifuge = useRef(null);
   const subscription = useRef(null);
-  const orderbook = useMemo(() => new OrderBook(symbol), []);
+  const orderbook = useMemo(() => new OrderBook(symbol), [symbol]);
 
   useEffect(() => {
-    centrifuge.current = new Centrifuge(WSS_ENDPOINT, { token: WSS_JWT });
-    subscription.current = centrifuge.current.newSubscription(
-      `orderbook:${symbol}`
-    );
+    const channel = `orderbook:${symbol}`;
 
-    const reconnect = () => {
-      subscription.current.unsubscribe();
+    if (!centrifuge.current) {
+      centrifuge.current = new Centrifuge(WSS_ENDPOINT, { token: WSS_JWT });
+
+      centrifuge.current.on("connected", () => {
+        setConnected(true);
+      });
+      centrifuge.current.on("disconnected", () => {
+        setConnected(false);
+      });
+      centrifuge.current.on("connecting", () => {
+        setConnected(false);
+      });
+    } else {
       centrifuge.current.disconnect();
-      orderbook.reset();
+    }
 
-      setTimeout(() => {
-        centrifuge.current.connect();
-        subscription.current.subscribe();
-      }, 3000);
-    };
-
-    // register event handlers
-    centrifuge.current.on("connected", () => {
-      console.log("connected");
-      setConnected(true);
-    });
-    centrifuge.current.on("disconnected", () => {
-      console.log("disconnected");
-      setConnected(false);
-    });
-    centrifuge.current.on("connecting", () => {
-      console.log("connecting");
-      setConnected(false);
-    });
-    subscription.current.on("error", () => {
-      console.log("error");
-      reconnect();
-    });
-    subscription.current.on("publication", (ctx) => {
-      if (!orderbook.update(ctx.data)) {
-        // case of lost packages
-        reconnect();
+    // check if neither initialized nor subscribed already
+    if (!subscription.current || !centrifuge.current.getSubscription(channel)) {
+      // if subscribed, then unsubscribe first from previous channel
+      if (!!subscription.current) {
+        subscription.current.unsubscribe();
+        subscription.current.removeAllListeners();
+        centrifuge.current.removeSubscription(subscription.current);
       }
+      subscription.current = centrifuge.current.newSubscription(channel);
 
-      setSequence(ctx.data.sequence);
-      setTimestamp(ctx.data.timestamp);
-    });
+      subscription.current.on("error", () => {
+        console.error("error");
+        reconnect();
+      });
+      subscription.current.on("publication", (ctx) => {
+        if (!orderbook.update(ctx.data)) {
+          // connection lost
+          reconnect();
+        }
+
+        setSequence(ctx.data.sequence);
+        setTimestamp(ctx.data.timestamp);
+      });
+    }
 
     // connect & subscribe into channel
     centrifuge.current.connect();
@@ -76,10 +78,24 @@ const Orderbook = ({
       subscription.current.unsubscribe();
       centrifuge.current.disconnect();
     };
-  }, []);
+  }, [symbol]);
+
+  const reconnect = () => {
+    subscription.current.unsubscribe();
+    centrifuge.current.disconnect();
+    orderbook.reset();
+
+    setTimeout(() => {
+      centrifuge.current.connect();
+      subscription.current.subscribe();
+    }, 3000);
+  };
 
   return (
-    <div className={style.orderbook}>
+    <div
+      className={style.orderbook}
+      style={{ opacity: connected ? "1" : "0.5" }}
+    >
       <div className={style.asks}>
         <div className={style.header}>
           <span className={style.price}>Price({unit})</span>
@@ -88,7 +104,7 @@ const Orderbook = ({
         </div>
         {orderbook.topAsks(depth).map(([price, size, total]) => (
           <div key={price} className={style.row}>
-            <span className={style.price}>{price.toFixed(2)}</span>
+            <span className={style.price}>{price.toFixed(4)}</span>
             <span className={style.size}>{size.toFixed(4)}</span>
             <span className={style.total}>{total.toFixed(4)}</span>
           </div>
@@ -103,7 +119,7 @@ const Orderbook = ({
         </div>
         {orderbook.topBids(depth).map(([price, size, total]) => (
           <div key={price} className={style.row}>
-            <span className={style.price}>{price.toFixed(2)}</span>
+            <span className={style.price}>{price.toFixed(4)}</span>
             <span className={style.size}>{size.toFixed(4)}</span>
             <span className={style.total}>{total.toFixed(4)}</span>
           </div>
