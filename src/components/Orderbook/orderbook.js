@@ -41,8 +41,9 @@ class OrderBook {
     }
    */
   update({ asks, bids, timestamp, sequence }) {
+    // verify lost packages
     if (!!this.sequence && sequence !== this.sequence + 1) {
-      throw new Error("Invalid sequence");
+      return false;
     }
 
     for (const [price, size] of asks) {
@@ -63,6 +64,7 @@ class OrderBook {
 
     this.sequence = sequence;
     this.timestamp = timestamp;
+    return true;
   }
 
   cleanupOldOrders(before) {
